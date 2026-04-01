@@ -166,7 +166,13 @@ The intermediate reports (`competitive-landscape.md`, `reddit-pain-points.md`, e
 
 ## Configuration
 
-The project includes a `.claude/settings.local.json` that pre-approves the tools the skill needs (web search, web fetch, browser automation, file I/O). You can review and adjust these permissions as needed.
+The skill requires several tool permissions (web search, web fetch, browser automation, file I/O) that Claude Code will prompt you to approve during the run. To skip these prompts and let the skill run fully autonomously, rename the example settings file:
+
+```bash
+cp .claude/settings.local.json.example .claude/settings.local.json
+```
+
+This pre-approves all the tools the skill needs. Review the file before applying — it grants broad permissions including shell access, web fetching, and browser automation.
 
 ## Tips
 

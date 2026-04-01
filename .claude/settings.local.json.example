@@ -1,0 +1,19 @@
+{
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read",
+      "Write",
+      "Edit",
+      "Glob",
+      "Grep",
+      "Agent(*)",
+      "Skill(*)",
+      "WebSearch(*)",
+      "WebFetch(*)",
+      "mcp__playwright__*",
+      "mcp__ide__*"
+    ]
+  }
+}
