@@ -1,6 +1,10 @@
 # Positioning Research
 
-A Claude Code skill that conducts deep positioning research for any product or idea. Give it a URL or a short product description and it produces a comprehensive, C-level-ready positioning document with competitive analysis, user research, pricing recommendations, and go-to-market strategy.
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that conducts deep positioning research for any product or idea. Give it a URL or a short product description and it produces a positioning document with competitive analysis, user research, pricing recommendations, and go-to-market strategy.
+
+The research is oriented around **invalidation** — finding reasons the thesis is wrong, then seeing what survives.
+
+Most positioning research presupposes the product should exist, which biases every search query and every quote toward confirmation. Invalidation flips that default: it prioritizes churned user language, failed competitors, and skeptic arguments over marketing copy and press releases. The findings that survive this scrutiny are the ones worth betting on — and if nothing survives, that's a valuable answer too.
 
 ## What It Does
 
@@ -8,9 +12,9 @@ This skill automates the kind of market research that typically takes a consulta
 
 1. **Understands the product** — scrapes a website or works from your description
 2. **Asks clarifying questions** — so it researches the right angles
-3. **Runs parallel research agents** (on Sonnet for cost efficiency) — competitive landscape, user pain points (Reddit, G2, Capterra), trend validation & structural shifts, market sizing & GTM intelligence
-4. **Performs deep dives** — 2-3 additional agents investigate the most promising angles
-5. **Synthesizes everything** into a single positioning document with numbered citations
+3. **Runs parallel research agents** (on Sonnet for cost efficiency) — competitive reality check (third-party evidence only), user pain points & switching signals (Reddit, G2, Discord, Glassdoor), trend validation & structural shifts, market sizing & invalidation
+4. **Asks before going deeper** — reviews Phase 2 findings with you and recommends targeted deep dives (1-2 agents) rather than automatically launching them
+5. **Synthesizes everything** into a single positioning document that leads with "The Case Against" — earning trust by surfacing hard truths before building the positive case
 
 ### Output Structure
 
@@ -18,31 +22,27 @@ Each research run creates a folder under `research/` with:
 
 ```
 research/{product-name}-positioning/
-├── competitive-landscape.md      # Competitors, pricing, positioning gaps
-├── reddit-pain-points.md         # User language, pain points, switching triggers
-├── trends-validation.md          # Market trends, funding signals, analyst coverage
-├── market-sizing-gtm.md          # TAM/SAM/SOM, GTM channels, platform risk
-├── deep-dive-*.md                # 2-3 focused investigations
+├── competitive-landscape.md      # Third-party evidence on competitors, pricing gaps
+├── user-signals.md               # User language, pain points, switching triggers, employee sentiment
+├── trends-validation.md          # Funding/shutdown signals, structural shifts, analyst coverage
+├── market-sizing-gtm.md          # Bottom-up sizing, invalidation findings, platform risk
+├── deep-dive-*.md                # 1-2 targeted investigations (opt-in)
 ├── positioning-research.md       # Final synthesis (the main deliverable)
 └── browser-data/                 # Archived browser session artifacts
 ```
 
-The final `positioning-research.md` is a 12-section document:
+The final `positioning-research.md` is an 8-section document:
 
-1. Executive summary (go/no-go decision ready)
-2. Market opportunity & timing
-3. Competitive landscape with pricing analysis
-4. User research with direct quotes and sources
-5. Go-to-market landscape
-6. Value proposition ranking
-7. Positioning strategy recommendation
-8. **Structural shifts** — forces reshaping the segment (e.g., AI commoditizing code, category convergence) with evidence, timelines, and implications
-9. Risks & threats (including platform risk)
-10. Keyword & search strategy
-11. Concrete pricing recommendation with validation methodology
-12. Prioritized next steps
+1. **The Case Against** — why this might not work (failed companies, skeptic arguments, platform risk, data gaps)
+2. **Market Reality** — what users actually say, what they've tried, employee sentiment on competitors
+3. **Competitive Landscape** — competitor overview from user evidence (not marketing copy), pricing landscape, most dangerous competitors
+4. **Market Sizing** — bottom-up math (primary), top-down as supplement with confidence flags, demand signals, market timing
+5. **Structural Shifts** — forces reshaping the segment with evidence, winners/losers, timelines, and implications
+6. **Positioning Strategy** — recommended positioning grounded in user language, value props ranked by evidence strength
+7. **Pricing Recommendation** — concrete price points with evidence basis and explicit flags on what's not validated
+8. **What To Do Next** — prioritized actions, specific validation experiments, what to kill
 
-Every claim is backed by numbered citations with URLs. Every user quote links to the original thread or review.
+Every claim is backed by numbered citations with URLs and source credibility annotations (`[N, user review]`, `[N, competitor claim]`, `[N, analyst estimate]`).
 
 ## Prerequisites
 
@@ -52,7 +52,7 @@ Every claim is backed by numbered citations with URLs. Every user quote links to
 
 ### Browser automation (optional, but recommended)
 
-Most research (~95%) uses WebSearch and WebFetch — built-in Claude Code tools that search Google and fetch web pages without a browser. This includes Reddit (via `site:reddit.com` search + `old.reddit.com` fetching) and competitor reviews on G2/Capterra. Browser automation is only needed as a fallback for JS-heavy sites and Google Trends.
+Most research (~95%) uses WebSearch and WebFetch — built-in Claude Code tools that search Google and fetch web pages without a browser. This includes Reddit (via `site:reddit.com` search + `old.reddit.com` fetching), G2 reviews, Discord server discovery, LinkedIn/Greenhouse job postings, and Glassdoor/Blind employee sentiment. Browser automation is only needed as a fallback for JS-heavy sites and Google Trends.
 
 You need **one** of the following:
 
@@ -92,15 +92,17 @@ A full research run is **token-intensive**. The skill launches 6-7 parallel agen
 
 The skill is designed to minimize cost without sacrificing quality:
 
-- **Sonnet for research, Opus for synthesis.** All parallel research agents (Phase 2 and Phase 3) run on `model: "sonnet"` — the cheaper, faster model. These agents do search-and-summarize work that doesn't need the most capable model. Only the final synthesis (Phase 5), where the skill takes a position and writes opinionated recommendations, uses Opus.
-- **WebSearch/WebFetch over browser automation.** Browser tools are expensive in tokens (screenshots, DOM snapshots, multi-step interactions). The skill uses lightweight WebSearch and WebFetch for ~95% of research — including Reddit (`site:reddit.com` + `old.reddit.com`) and G2/Capterra reviews. Browser is only used as a fallback when static fetching fails.
-- **Parallel execution.** Running agents in parallel doesn't save tokens, but it cuts wall-clock time in half — you get results in 30-40 minutes instead of 60+.
+- **Three-tier model strategy.** Haiku subagents handle web page fetching and extraction (turning 80K-token pages into 500-token summaries). Sonnet agents run all parallel research (Phase 2 and Phase 3). Only the final synthesis uses Opus.
+- **Haiku summarization layer.** No research agent reads raw web pages directly. Every WebFetch goes through a Haiku subagent that extracts only what's needed — this is the biggest cost savings.
+- **WebSearch/WebFetch over browser automation.** Browser tools are expensive in tokens (screenshots, DOM snapshots, multi-step interactions). The skill uses lightweight WebSearch and WebFetch for ~95% of research — including Reddit (`site:reddit.com` + `old.reddit.com`) and G2 reviews. Browser is only used as a fallback.
+- **Opt-in deep dives.** Phase 3 is no longer automatic — the skill reviews Phase 2 findings with you and only launches additional agents if you agree.
+- **Parallel execution.** Running agents in parallel doesn't save tokens, but it cuts wall-clock time in half.
 
 ### Reducing costs
 
 If cost is a concern:
 
-- **Skip deep dives.** Phase 3 (deep dives) adds 2-3 more agents. You can interrupt after Phase 2 and ask Claude to synthesize with what it has.
+- **Skip deep dives.** Phase 3 (deep dives) is now opt-in — just say "proceed to synthesis" when asked.
 - **Narrow the scope.** A focused directive like "focus only on competitive pricing" will result in fewer searches and shorter reports.
 - **Use Sonnet for everything.** You can switch Claude Code to use Sonnet (`/model sonnet`) before invoking the skill. The synthesis won't be as sharp, but it'll cost ~3-5x less.
 
@@ -148,9 +150,8 @@ Start Claude Code from the project directory, then invoke the skill:
 1. Claude scrapes the URL or reads your memo
 2. It asks you 2-5 clarifying questions — answer these, they shape the research
 3. It launches 4 parallel research agents (takes ~15-20 min)
-4. It launches 2-3 deep-dive agents based on findings (~15-20 min)
-5. It synthesizes everything into the final positioning document
-6. (Optional) It generates keywords for Google Keyword Planner — paste results back for analysis
+4. It reviews findings with you and recommends targeted deep dives — you decide whether to go deeper or proceed
+5. It synthesizes everything into the final positioning document, leading with "The Case Against"
 
 ### After the research
 
@@ -178,8 +179,9 @@ This pre-approves all the tools the skill needs. Review the file before applying
 
 - **Be specific in your memo.** The more context you give upfront, the better the research. Include target audience, known competitors, and what angle matters most to you.
 - **Answer the clarifying questions thoughtfully.** These directly shape which subreddits are searched, which competitors are investigated, and which angles are prioritized.
+- **Don't be alarmed by "The Case Against."** The document leads with reasons the thesis might be wrong — this is by design. It earns trust by surfacing hard truths before building the positive case. The findings that survive scrutiny are the ones worth betting on.
 - **Browser tools are a fallback.** The skill uses WebSearch and WebFetch for ~95% of research. Browser automation (Chrome or playwright-cli) is only used when a page blocks static fetching.
-- **Research takes time.** A full run with deep dives takes 30-40 minutes. The parallel agents do the heavy lifting.
+- **Research takes time.** A full run takes 30-40 minutes. The parallel agents do the heavy lifting.
 - **Review intermediate reports.** The individual agent reports in the research folder are useful on their own — you don't have to wait for the final synthesis.
 
 ## Example Output
@@ -188,18 +190,16 @@ Here's what a research folder looks like after a complete run:
 
 ```
 research/ai-qa-testing-positioning/
-├── competitive-landscape.md       (27 KB)
-├── reddit-pain-points.md          (16 KB)
-├── trends-validation.md           (18 KB)
+├── competitive-landscape.md       (15 KB)
+├── user-signals.md                (18 KB)
+├── trends-validation.md           (10 KB)
 ├── market-sizing-gtm.md           (14 KB)
-├── agentic-qa-deep-dive.md        (40 KB)
-├── deep-dive-ai-code-quality.md   (15 KB)
-├── deep-dive-top-competitors.md   (25 KB)
-├── positioning-research.md        (83 KB)  ← main deliverable
+├── deep-dive-top-competitor.md    (12 KB)
+├── positioning-research.md        (45 KB)  ← main deliverable
 └── browser-data/
 ```
 
-The final positioning document is typically 30-80 KB — a thorough, opinionated analysis with concrete recommendations.
+The final positioning document is typically 25-50 KB — a thorough, opinionated analysis that leads with invalidation and backs every claim with cited evidence.
 
 ## License
 

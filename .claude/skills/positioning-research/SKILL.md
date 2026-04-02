@@ -8,230 +8,242 @@ argument-hint: "[URL or short product memo, e.g. 'https://linear.app' or 'A tool
 
 You are conducting positioning and market research. The user provided: **$ARGUMENTS**
 
+## Research Philosophy
+
+This skill exists to help someone make a high-stakes decision — whether to build, invest, pivot, or kill an idea. The worst outcome is false confidence. Every phase of research is oriented around **invalidation**: finding reasons the thesis is wrong, then seeing what survives.
+
+**Source credibility tiers** — weight evidence accordingly:
+
+1. **Tier 1 (strongest):** Churned user language ("I left X because..."), negative reviews, user complaints, support threads, "I switched from" posts
+2. **Tier 2:** Job postings in the category (real demand signal), hiring velocity of competitors, actual usage data (GitHub stars trends, npm downloads, BuiltWith adoption)
+3. **Tier 3:** Funding data, revenue estimates, analyst reports from credible firms (Gartner, Forrester — but note these firms sell reports, so size estimates skew high)
+4. **Tier 4 (weakest):** Competitor marketing copy, press releases, Product Hunt launches, self-reported metrics
+
+When Tier 4 sources contradict Tier 1-2 sources, Tier 1-2 wins. Always. A competitor's homepage says "loved by 10,000 teams" but G2 reviews say "we churned after 3 months" — lead with the G2 data.
+
 ## Step 0 — Create an Isolated Research Workspace
 
-Before doing anything else, create a workspace folder for this research run inside the `research/` directory. The folder name should be auto-generated from the product name and research topic, using lowercase kebab-case. It should be human-readable and explicit — someone browsing the folder should immediately understand what the research is about.
+Before doing anything else, create a workspace folder for this research run inside the `research/` directory.
 
-**Naming convention:** `{product-name}-{research-topic}`
-
-Examples:
-- `linear-positioning`
-- `stripe-competitive-analysis`
-- `notion-market-research`
-- `acme-saas-positioning`
+**Naming convention:** `{product-name}-{research-topic}` (lowercase kebab-case)
 
 ```bash
-# Derive RESEARCH_DIR from the product name and research topic
 RESEARCH_DIR="research/{product-name}-{research-topic}"
 mkdir -p "$RESEARCH_DIR"
-
-# Also create a unique run ID for playwright session scoping
 RUN_ID="research-$(date +%Y%m%d-%H%M%S)"
 ```
 
-All playwright-cli sessions for this run must use session names prefixed with the run ID (e.g., `-s=${RUN_ID}-reddit`). **All files — intermediate reports, agent outputs, and the final synthesis — go into `$RESEARCH_DIR/`.** Nothing should be written to the project root.
+All playwright-cli sessions must use session names prefixed with `${RUN_ID}`. **All files go into `$RESEARCH_DIR/`.** Nothing in the project root.
 
 ## Step 1 — Determine Input Mode
 
-Look at `$ARGUMENTS` to determine which mode to use:
+Look at `$ARGUMENTS`:
 
-- **URL mode** — the input contains a URL (starts with `http://` or `https://`). You'll scrape the website to understand the product.
-- **Memo mode** — the input is a text description, brief, or set of bullet points. You'll work from that description.
+- **URL mode** — input contains a URL. Scrape the website to understand the product.
+- **Memo mode** — input is text. Work from the description.
 
-The rest of the input (beyond the URL or memo) may contain focus directives like "focus on the developer tooling angle" — carry these through the entire research.
+Carry any focus directives ("focus on the developer tooling angle") through the entire research.
 
 ## Step 2 — Understand the Product
 
 ### URL Mode: Scrape the Website
 
-Use WebFetch to read the product's main page first. If WebFetch returns meaningful content, continue with it for subpages. If it fails (empty, 403, JS-only), fall back to the browser tool.
+Use WebFetch to read the main page. If it fails (empty, 403, JS-only), fall back to browser.
 
-**Step 1 — Read the main page** via WebFetch (or browser as fallback).
-
-**Step 2 — Discover subpages from the actual content.** Don't guess paths like `/pricing` or `/features` — they often don't exist. Instead, look at the navigation links, footer links, and CTAs present in the page content you just fetched. Follow the ones that look most useful for understanding the product (pricing, features, about, blog, docs, use cases, etc.). Only visit pages that actually exist on the site.
-
-**Step 3 — Read the most promising subpages** (typically 2-5, depending on what's available).
-
-If using the browser for discovery, close the tab/session when done.
+Discover subpages from actual navigation links — don't guess paths like `/pricing`. Follow the 2-5 most useful ones.
 
 ### Memo Mode: Work from the Description
 
-Read the memo carefully. Extract everything you can about:
-- What the product does
-- Who it's for
-- How it works
-- What makes it different
+Extract: what it does, who it's for, how it works, what makes it different.
 
-### Both Modes: Produce an Internal Summary
+### Both Modes: Internal Summary
 
-After gathering initial information, produce a short internal summary:
 - What the product does (1 paragraph)
 - Target audience
 - Core value propositions (3-5 bullets)
-- Key differentiators
+- Claimed differentiators — flag these as *claimed*, not validated
 - Pricing model (if known)
-- Key category terms to research
+- Category terms to research
 
 ## Step 3 — Ask Clarifying Questions
 
-Before launching into research, pause and ask the user 2-5 targeted questions to fill gaps in your understanding. The goal is to avoid wasting research time on wrong assumptions.
+Pause and ask 2-5 questions. Good ones:
 
-Good questions to consider (pick the ones that matter most given what you already know):
+- **Target audience**: "Who's the primary buyer — practitioners, team leads, or company-wide?"
+- **Competitive awareness**: "Competitors you already know about?"
+- **Differentiation**: "What's hardest for a competitor to replicate?"
+- **Stage**: "Existing product you're repositioning, or new idea you're validating?"
+- **Category**: "What would someone Google to find this?"
+- **Priorities**: "What matters most — competitive intel, user language, positioning, or something else?"
 
-- **Target audience**: "Who do you see as the primary buyer — is this for individual practitioners, team leads, or a company-wide purchase?"
-- **Competitive awareness**: "Are there specific competitors you already know about or are watching?"
-- **Differentiation**: "What do you think is the hardest thing for a competitor to replicate about this?"
-- **Stage**: "Is this an existing product you're repositioning, or a new idea you're validating?"
-- **Market category**: "If someone Googled for this product, what would they search? What category do you think this fits in?"
-- **Priorities**: "What's most important to you from this research — competitive intel, user language, positioning angle, keyword strategy, or something else?"
-
-Keep it conversational. Don't dump all questions at once — ask the 2-5 most important ones based on what's missing. If the user's input was already very detailed, you might only need 1-2 clarifications.
-
-**Wait for the user's answers before proceeding to Phase 2.** Their responses will shape which subreddits to search, which competitors to investigate, and which angles to prioritize.
+**Wait for answers before proceeding.**
 
 ## Prerequisites
 
-- **Chrome browser with claude-in-chrome extension** (preferred) — provides browser automation via MCP tools
-- **playwright-cli** (fallback) — must be installed and available in PATH (`which playwright-cli`). Used only when claude-in-chrome is not available.
+- **Chrome browser with claude-in-chrome extension** (preferred)
+- **playwright-cli** (fallback) — must be in PATH
 
 ## Browser Tool Selection
 
-At the start of the run, determine which browser tool is available:
-
-1. **Check for claude-in-chrome first:** Try calling `mcp__claude-in-chrome__tabs_context_mcp`. If it succeeds, use chrome tools for all browser tasks.
-2. **Fall back to playwright-cli:** If chrome tools are not available (MCP not connected), use playwright-cli instead.
-
-Set a variable to track which browser backend to use, and pass it to all agents that need browser access.
+1. Try `mcp__claude-in-chrome__tabs_context_mcp`. If it works, use Chrome.
+2. Otherwise, fall back to playwright-cli.
 
 ## Research Tool Selection
 
-Use the lightest tool that gets the job done:
+Use the lightest tool that works:
 
 | Task | Tool | Why |
 |------|------|-----|
-| Search queries (competitors, categories, alternatives, HN) | **WebSearch** | Fast, no browser needed |
-| Read competitor pages, blogs, articles, docs | **WebFetch** | Grabs page content directly |
-| Reddit thread discovery | **WebSearch** (`site:reddit.com`) | Finds threads reliably via Google index |
-| Reddit thread reading | **WebFetch** (`old.reddit.com`) | old.reddit.com is scrapable; new Reddit blocks |
-| Reddit thread reading (if WebFetch fails) | **Chrome browser** (or playwright-cli) | Escalation only — browser hits CAPTCHAs frequently |
-| G2/Capterra competitor reviews | **WebSearch** + **WebFetch** | Competitor reviews have verified user language |
-| Google Trends | **Chrome browser** first, then proxy sources | Try browser; if 429/CAPTCHA, use explodingtopics.com or trend articles |
-| Any site that WebFetch fails on (403, empty, JS-only) | **Chrome browser** (or playwright-cli fallback) | Last resort when static fetch doesn't work |
+| Search queries | **WebSearch** | Fast, no browser |
+| Read pages, blogs, docs | **WebFetch** | Direct content grab |
+| Reddit discovery | **WebSearch** (`site:reddit.com`) | Google index finds threads |
+| Reddit reading | **WebFetch** (`old.reddit.com/r/.../comments/ID.json`) | `.json` endpoint returns structured data; fall back to `old.reddit.com` HTML |
+| Reddit fallback | **Chrome/playwright-cli** | Escalation only |
+| G2 reviews | **WebSearch** + **WebFetch** | G2 acquired Capterra (Jan 2026) — review ecosystem is now consolidated. Search both but expect overlap |
+| Google Trends | **Chrome** first, then proxy sources | Browser often fails; use explodingtopics.com or trend articles |
+| Discord servers | **WebSearch** (`site:discord.com` or `"discord.gg"`) | Find public servers; can't read private channels |
+| Job postings | **WebSearch** (`site:linkedin.com/jobs` or `site:greenhouse.io`) | Demand signal — companies hiring = real need |
+| Glassdoor/Blind | **WebSearch** + **WebFetch** | Employee sentiment = competitor health signal |
+| JS-only/403 sites | **Chrome/playwright-cli** | Last resort |
 
-**Key lesson from past runs:** Reddit browser automation and Google Trends fail ~90% of the time. WebSearch `site:reddit.com` + WebFetch `old.reddit.com` is far more reliable for Reddit. For Trends, proxy sources (explodingtopics.com, trend articles, funding signals) provide equivalent data.
+## Web Fetching Protocol — Haiku Summarization Layer
 
-## Phase 2 — Parallel Research (15-20 min)
+Every WebFetch in this skill goes through a summarization layer to control token cost. **No agent should WebFetch a page directly into its own context.**
 
-Launch **4 parallel agents** using `model: "sonnet"`. These agents do search-and-summarize work that doesn't need Opus — save the expensive model for the final synthesis. All agents use WebSearch/WebFetch as primary tools. Agents 2 and 3 may escalate to browser only if WebFetch fails on specific URLs.
+Instead, for each URL that needs reading, spawn a **Haiku subagent** (`model: "haiku"`) with this pattern:
 
-### Agent 1: Competitive Landscape & Pricing (WebSearch + WebFetch)
+```
+Fetch this URL and extract ONLY the following:
+- URL: [the URL]
+- Extract: [what you need — e.g., "user complaints about [product]", "pricing tiers and price points", "main arguments for/against [category]"]
+
+Rules:
+- Use WebFetch to read the page
+- Extract only what was asked for — ignore navigation, ads, sidebars, unrelated content
+- If the page is a Reddit thread, extract: top-level post summary, top 5-10 comments by relevance, any specific quotes about [topic]
+- If the page is a review site, extract: rating, pros, cons, reviewer context, key quotes
+- If the page is a pricing page, extract: tier names, prices, what's included, billing model
+- Keep your response under 500 words
+- Include the source URL at the top
+- If the page fails to load or is paywalled, say so in one line
+```
+
+This means a Reddit thread that's 80K tokens raw becomes a 500-token extract. The Sonnet agent never sees the full page — only the Haiku-compressed summary.
+
+**Batch fetches when possible.** If an agent needs to read 8 URLs, spawn 8 Haiku subagents in parallel, collect all summaries, then proceed with analysis.
+
+**Cap: each Phase 2 agent should fetch at most 15 URLs total.** Prioritize ruthlessly — not every search result needs fetching. Read the WebSearch snippets first and only fetch pages where the snippet suggests high-value content.
+
+## Phase 2 — Parallel Research
+
+Launch **4 parallel agents** using `model: "sonnet"`. All agents use the Haiku summarization layer for WebFetch (see above). They use WebSearch directly.
+
+### Agent 1: Competitive Reality Check (Third-Party Evidence Only)
+
+This agent builds the competitive picture from *external evidence*, not competitor marketing copy. The goal is to understand what competitors actually deliver, not what they claim.
 
 **Step 1 — Discover competitors via WebSearch:**
-- `"[category]" platform`
-- `"[category]" tool`
-- `[category] alternative`
+- `"[category]" alternative`
 - `best [category] tools [current year]`
+- `"[category]" vs` (comparison articles from third parties)
+- `"[category]" review site:g2.com`
 
-**Step 2 — Read each competitor's homepage and pricing via WebFetch:**
-For each direct and adjacent competitor:
-- Capture the H1/hero tagline
-- Note their positioning category
-- Identify their target audience
-- **Read their pricing page** — capture tiers, price points, what's included at each level, free trial availability
+**Step 2 — For each competitor, gather third-party evidence:**
+- G2/Capterra reviews (especially 2-3 star reviews — these are most informative)
+- HN threads mentioning the competitor
+- Reddit threads discussing the competitor
+- Blog posts comparing competitors (from users, not the competitors themselves)
 
-If WebFetch returns empty or blocked content for a specific site, note it and move on.
+**Step 3 — Only then, check pricing pages:**
+Read competitor pricing pages via WebFetch — but treat pricing as factual data, not their marketing narrative. Capture tiers, price points, model type.
 
-**Step 3 — Check who ranks for category terms via WebSearch:**
-- Search the core category terms and note the top organic results
+**Step 4 — Pricing landscape analysis:**
+- Map price ranges across the category
+- Identify pricing model patterns (per-seat, usage, flat, freemium)
+- Where are the gaps?
+- What does pricing signal about willingness-to-pay?
 
-**Step 4 — Pricing strategy analysis:**
-- Map the pricing landscape: who's cheap, who's premium, where the gaps are
-- Identify pricing models (per-seat, usage-based, flat, freemium)
-- Note any signals about willingness-to-pay (pricing page testimonials, case studies mentioning ROI)
-- Look for Crunchbase/funding data that hints at revenue scale
+**Step 5 — Job posting scan (demand signal):**
+- `site:linkedin.com/jobs "[category]"` or `site:greenhouse.io "[category term]"`
+- Count open roles that would use tools in this category
+- Note which companies are hiring — this is a real demand signal, harder to fake than market reports
 
-Save report to `$RESEARCH_DIR/competitive-landscape.md`: competitor table (name, tagline, category, target, pricing, URL), pricing landscape analysis, positioning gaps, white space.
+Save to `$RESEARCH_DIR/competitive-landscape.md` (**max 2,000 words**): competitor table (name, what users actually say, pricing, G2 rating, URL), pricing landscape, positioning gaps, job posting demand signals. Be dense — tables over prose.
 
-### Agent 2: User Pain Points & Switching Signals — Reddit + Review Sites
+**What NOT to include:** competitor taglines, hero copy, or self-described positioning. If you reference what a competitor claims, explicitly frame it as "Competitor X claims..." and contrast it with user evidence.
 
-This agent gathers authentic user language from Reddit, G2, Capterra, and community forums. Past runs show that Reddit browser automation fails ~90% of the time (CAPTCHAs, rate limits). Use a multi-layered approach instead of relying on browser access alone.
+### Agent 2: User Pain Points & Switching Signals
 
-**Layer 1 — Reddit via WebSearch + WebFetch (primary, most reliable):**
+This agent gathers authentic user language. It is the most important agent — user voice is the foundation of everything else.
 
-Reddit threads are indexed by Google. Use WebSearch to find them, then WebFetch to read individual threads (old.reddit.com works better than new Reddit for scraping):
+**Layer 1 — Reddit via WebSearch + WebFetch (primary):**
 
 ```
-# Find threads via Google
 WebSearch: site:reddit.com "[category]" pain OR frustration OR switched OR alternative
-WebSearch: site:reddit.com "[competitor name]" review OR experience OR switched from
-WebSearch: site:reddit.com r/[relevant_subreddit] "[search term]"
-
-# Read individual threads — use old.reddit.com for better scraping
-WebFetch: https://old.reddit.com/r/SUBREDDIT/comments/THREAD_ID/...
+WebSearch: site:reddit.com "[competitor name]" review OR experience OR "switched from"
 ```
 
-This approach reliably returns thread content with comments. Run 8-12 searches across 3-5 subreddits.
-
-**Layer 2 — Browser for Reddit (escalation only):**
-
-Only use browser if WebFetch returns empty/blocked for specific threads you've already identified via WebSearch. Don't start with browser — it's slow and frequently hits CAPTCHAs.
-
-Using Chrome:
+Read threads via WebFetch using `old.reddit.com`. For structured data, try the `.json` endpoint:
 ```
-mcp__claude-in-chrome__tabs_create_mcp → get tabId
-mcp__claude-in-chrome__navigate(tabId, "https://www.reddit.com/r/SUBREDDIT/comments/...")
-mcp__claude-in-chrome__read_page(tabId)
-mcp__claude-in-chrome__javascript_tool(tabId, "window.close()")
+WebFetch: https://old.reddit.com/r/SUBREDDIT/comments/THREAD_ID/.json
 ```
+Falls back to HTML if `.json` is blocked.
 
-Using playwright-cli:
-```
-playwright-cli -s=${RUN_ID}-reddit open "https://old.reddit.com/r/..."
-sleep 4
-playwright-cli -s=${RUN_ID}-reddit snapshot
-playwright-cli -s=${RUN_ID}-reddit close
-```
+Run 8-12 searches across 3-5 subreddits.
 
-**Layer 3 — G2 and Capterra reviews (required, not optional):**
+**Layer 2 — G2 reviews (focus on negative/mixed):**
 
-Competitor reviews on G2/Capterra contain high-quality user language with verified buyers. This is often more reliable than Reddit.
+G2 acquired Capterra in January 2026 — the review ecosystem is consolidated. Focus on 2-3 star reviews (most informative) and "switched from" mentions.
 
 ```
 WebSearch: site:g2.com "[competitor name]" reviews
-WebSearch: site:capterra.com "[competitor name]" reviews
-WebSearch: "[competitor name]" review "switched from" OR "moved to" OR "pros and cons"
+WebSearch: "[competitor name]" "switched from" OR "moved to" OR "pros and cons"
 ```
 
-Read the top 2-3 review pages per major competitor via WebFetch.
+**Layer 3 — Discord (important for dev tools and community-led products):**
 
-**Layer 4 — Community forums and HN:**
+Many authentic discussions now happen in Discord, not Reddit. Public servers are discoverable:
 
+```
+WebSearch: "[category]" discord server OR discord.gg
+WebSearch: site:discord.com "[category]"
+```
+
+Note which Discord communities exist and their size. If threads are publicly indexed, read them.
+
+**Layer 4 — HN and community forums:**
 ```
 WebSearch: site:news.ycombinator.com "[category]" OR "[competitor]"
-WebSearch: "[category]" forum OR community discussion pain OR frustration
+WebSearch: "[category]" forum discussion pain OR frustration
 ```
 
-**What to search for across all layers:**
-- How users describe the problem the product solves
-- What language they use (not what the product calls it)
-- What tools they mention and what they've tried
-- What frustrations they express
-- Whether the product's terminology matches user language
-- **Switching signals** — explicitly search for "switched from", "moved to", "left [competitor]", "alternative to". Why do users leave their current tool? What triggers the switch? What do they wish they had?
+**Layer 5 — Blind/Glassdoor (employee sentiment as competitive intel):**
 
-**Citation rule: Every quote MUST have a direct URL to the source thread/review.** Do not include quotes sourced from aggregator articles or secondhand summaries. If you cannot link to the original thread, mark the quote as `[unverified — secondhand source]` and note where you found it.
+Competitor employee sentiment reveals things marketing never will — low morale, talent flight, leadership chaos, product direction disagreements.
 
-**When done — close any browser tabs/sessions immediately.**
+```
+WebSearch: site:glassdoor.com "[competitor name]" reviews
+WebSearch: site:teamblind.com "[competitor name]"
+WebSearch: "[competitor name]" glassdoor OR blind employee review
+```
 
-Save report to `$RESEARCH_DIR/reddit-pain-points.md`: user language, pain points, switching triggers, tools mentioned, sentiment, key quotes with direct thread/review URLs.
+This is Tier 2 evidence — treat it seriously.
 
-### Agent 3: Trend Validation (WebSearch primary, browser for Trends if available)
+**What to extract across all layers:**
+- How users describe the problem (their words, not the product's words)
+- What they've tried and what failed
+- Switching triggers — the specific moment they decided to leave
+- What they wish existed
+- Employee sentiment about key competitors (morale, direction, talent retention)
 
-Past runs show Google Trends browser automation fails frequently (429 rate limits, JS rendering issues). Use a multi-source approach so trend data doesn't depend on a single tool.
+**Citation rule: Every quote MUST have a direct URL.** No secondhand quotes. If you can't link to the original, mark as `[unverified — secondhand source]`.
+
+Save to `$RESEARCH_DIR/user-signals.md` (**max 2,500 words**): user language, pain points ranked by frequency, switching triggers, competitor employee sentiment, key quotes with URLs. Prioritize direct quotes over summaries — quotes are the raw material the synthesis needs.
+
+### Agent 3: Trend Validation & Structural Shifts
 
 **Google Trends — try browser first, fall back to proxies:**
 
-Attempt 1 — Browser (may fail):
 Using Chrome:
 ```
 mcp__claude-in-chrome__tabs_create_mcp → get tabId
@@ -240,456 +252,304 @@ mcp__claude-in-chrome__read_page(tabId)
 mcp__claude-in-chrome__javascript_tool(tabId, "window.close()")
 ```
 
-Using playwright-cli:
-```
-playwright-cli -s=${RUN_ID}-trends open "https://trends.google.com/trends/explore?q=TERM1,TERM2,TERM3&hl=en"
-sleep 6
-playwright-cli -s=${RUN_ID}-trends snapshot
-playwright-cli -s=${RUN_ID}-trends close
-```
-
-Attempt 2 — If browser fails (CAPTCHA, 429, empty), use proxy sources:
+If browser fails, use proxies:
 ```
 WebSearch: "google trends" "[category term]" growth OR rising OR declining
 WebSearch: site:explodingtopics.com "[category term]"
-WebSearch: "[category term]" search volume OR trend OR growth [current year]
 ```
 
-These proxy sources frequently report Google Trends data in their articles. Cite the proxy source, not Google Trends directly.
-
-**Funding signals (strong trend proxy):**
+**Funding signals:**
 ```
 WebSearch: "[category]" funding OR raised OR series [current year]
-WebSearch: site:crunchbase.com "[category]" funding rounds
-WebSearch: "[category]" acquisitions [current year]
+WebSearch: "[category]" acquisitions OR shutdown OR pivot [current year]
 ```
 
-Funding velocity is often a better trend signal than search volume — VCs do their own market timing analysis.
+Funding tells you where money flows. But also search for **shutdowns and pivots** — a competitor leaving the category is a signal too, and not always a positive one.
 
-**Thought leadership and HN:**
-- WebSearch: `"[category term]" blog OR article [current year]`
-- WebSearch: `site:news.ycombinator.com "[category term]"`
-- WebFetch on the most relevant articles to read them
+**Structural shifts — the most valuable part of this agent:**
 
-**Analyst coverage:**
-```
-WebSearch: "[category]" Gartner OR Forrester OR "magic quadrant" OR "market guide" [current year]
-```
-
-Analyst recognition signals market maturity — if Gartner has a Magic Quadrant for the category, it's established; if they just published a Market Guide, it's emerging.
-
-**Structural shifts (critical — this is what separates good research from great research):**
-
-Look for forces that are fundamentally reshaping this segment — not just "the market is growing" but "the rules of the game are changing." Examples: AI commoditizing code, no-code eating developer tools, regulation reshaping fintech, remote work killing office software.
+Look for forces reshaping the segment. Not "the market is growing" but "the rules are changing."
 
 ```
 WebSearch: "[category]" disrupted OR commoditized OR "paradigm shift" OR "future of" [current year]
-WebSearch: "[category]" AI impact OR automation OR replaced by [current year]
-WebSearch: "[category]" "no longer need" OR obsolete OR "changed everything" [current year]
-WebSearch: "[adjacent technology]" replacing OR eliminating "[category]"
+WebSearch: "[category]" AI impact OR automation OR "no longer need" [current year]
+WebSearch: "[adjacent technology]" replacing "[category]"
 ```
 
-For each shift identified, capture:
-- **What's changing:** the specific force or technology
-- **Who's affected:** which players/segments win or lose
-- **Timeline:** is this happening now, in 1-2 years, or 3-5 years?
-- **Evidence:** concrete signals (product launches, funding shifts, user behavior changes, HN discourse)
-- **Implication for the product:** does this shift help, hurt, or reshape the opportunity?
+For each shift: what's changing, who wins/loses, timeline, evidence, implication for the product.
 
-Look beyond the obvious. Check:
-- VC thesis papers and partner blog posts about the category (a16z, Sequoia, First Round — they often identify shifts early)
-- "Year in review" or "predictions" articles from category leaders
-- HN threads where practitioners debate whether the category still makes sense
-- Competitor pivots or shutdowns (a competitor pivoting away from the category IS a signal)
+**Analyst coverage (contextualize, don't trust blindly):**
+```
+WebSearch: "[category]" Gartner OR Forrester OR "magic quadrant" [current year]
+```
 
-Save report to `$RESEARCH_DIR/trends-validation.md`: trend direction (with source — Google Trends direct, proxy, or funding signals), relative search volumes (if available), thought leadership landscape, discourse maturity, analyst coverage level, **structural shifts with evidence and timeline**.
+If Gartner has a Magic Quadrant → established category. Market Guide → emerging. Nothing → either too niche or too new.
 
-### Agent 4: Market Sizing & GTM Intelligence (WebSearch + WebFetch)
+Save to `$RESEARCH_DIR/trends-validation.md` (**max 1,500 words**): trend data with sources, funding/shutdown signals, structural shifts with evidence and timeline, analyst coverage context.
 
-**Step 1 — Market sizing (TAM/SAM/SOM):**
-- WebSearch: `"[category]" market size [current year]`
-- WebSearch: `"[category]" market report OR forecast`
-- WebSearch: `"[category]" TAM OR "total addressable market"`
-- Look for industry reports (Gartner, Forrester, Grand View Research, Statista, etc.), even preview snippets are valuable
-- Search for the number of potential users/buyers in the target segment (e.g., "how many coaches in the US", "number of SaaS companies")
-- Check competitor funding rounds on Crunchbase/TechCrunch — funded competitors signal a validated market; their valuations hint at perceived market size
+### Agent 4: Market Sizing & Invalidation
 
-**Step 2 — Go-to-market channel analysis:**
-- WebSearch: `"[competitor name]" traffic OR marketing OR growth`
-- Check SimilarWeb/SEMrush data if publicly accessible
-- Look for competitor content strategies: do they blog, run a podcast, have a YouTube channel, do paid ads?
-- WebSearch: `"[competitor name]" review OR testimonial` — where do users discover these tools?
-- Check if competitors are on Product Hunt, AppSumo, marketplaces, or partnerships
-- Look for affiliate programs, referral programs, integration directories
+This agent does two things: size the market **and** actively look for reasons the thesis is wrong.
+
+**Step 1 — Bottom-up market sizing (preferred over top-down):**
+
+The best market sizing is traceable. Instead of citing a $4.2B TAM from Grand View Research, try to count real entities:
+
+```
+WebSearch: "how many [target users/companies]" [relevant geography]
+WebSearch: "[target role]" linkedin results [geography]
+WebSearch: site:linkedin.com/jobs "[category term]" — count job postings as demand proxy
+```
+
+If you can estimate: (number of potential customers) × (realistic price point) = a grounded SAM. Use 0.5-2% adoption rate, not 10%.
+
+**Step 2 — Top-down as supplement (not primary):**
+
+If analyst reports exist, cite them but add context:
+```
+WebSearch: "[category]" market size [current year]
+```
+
+Flag confidence level honestly. Grand View Research, Mordor Intelligence, etc. sell reports — their TAM estimates are marketing for the reports themselves. Treat them as upper bounds, not expected values.
 
 **Step 3 — Platform risk scan:**
-- WebSearch: `"[big player]" [category feature]` for relevant big players (OpenAI, Google, Salesforce, HubSpot, etc. — choose based on category)
-- Check if any major platform has announced or shipped features that overlap with this category
-- Look for acquisitions in the space — who's buying whom?
+```
+WebSearch: "[big player]" "[category feature]" announced OR launched OR acquired
+```
 
-Save report to `$RESEARCH_DIR/market-sizing-gtm.md`: TAM/SAM/SOM estimates with sources, GTM channels used by competitors, platform risk assessment.
+Check if any major platform has shipped or announced overlapping features.
 
-## Phase 3 — Deep Dives (15-20 min)
+**Step 4 — Invalidation search (critical):**
 
-Based on Phase 2 findings, launch **2-3 more parallel agents** using `model: "sonnet"` for deeper investigation into the most promising angles. Choose from:
+Actively search for reasons this market/product might not work:
 
-- **Deep-dive into the #1 competitor** — WebFetch their product page, pricing, blog content, handbook (if public). Understand their GTM motion and what's working for them.
-- **Deep-dive into user pain and switching** — more Reddit threads (via WebSearch `site:reddit.com` + WebFetch `old.reddit.com`), G2 reviews, specific workflows, horror stories, "I switched from X" threads
-- **Deep-dive into adjacent market** — WebSearch + WebFetch for tools in the neighboring category
-- **Deep-dive into emerging tools and platform moves** — WebSearch for Show HN, ProductHunt, recent startups, and announcements from big players entering the space
+```
+WebSearch: "[category]" failed OR shutdown OR "didn't work" OR "waste of money"
+WebSearch: "[category]" "solution looking for a problem" OR "nobody needs"
+WebSearch: site:news.ycombinator.com "[category]" dead OR overhyped OR "who uses"
+WebSearch: "[similar product that failed]" post-mortem OR "lessons learned"
+```
+
+Look for:
+- Startups that tried this and failed — why?
+- HN threads where practitioners are skeptical
+- Categories that sound big but have low actual adoption
+- "Graveyard" signals — lots of funded companies, few survivors
+
+This is the most important step. If you can't find reasons the thesis might be wrong, you haven't looked hard enough.
+
+Save to `$RESEARCH_DIR/market-sizing-gtm.md` (**max 2,000 words**): bottom-up sizing with math shown, top-down as supplement with confidence flags, platform risk, **invalidation findings** (failed companies, skepticism, adoption barriers).
+
+## Phase 3 — Deep Dives (Opt-In)
+
+Deep dives are **not automatic**. After Phase 2 completes, review the intermediate reports and ask the user:
+
+> "Phase 2 is done. Here's what I found: [2-3 sentence summary of key findings and gaps]. I'd recommend a deep dive into [specific question]. Want me to go deeper, or should I proceed to synthesis?"
+
+If the user says proceed, skip to Phase 4. If they want deep dives, launch **1-2 agents** (not 3) using `model: "sonnet"`. Each deep dive uses the Haiku summarization layer for fetches. Choose based on what Phase 2 surfaced:
+
+- **Deep-dive into the #1 threat** — actual user sentiment, employee morale, growth trajectory
+- **Deep-dive into the invalidation case** — if Phase 2 found red flags, investigate further
+- **Deep-dive into user pain** — more Reddit/G2/Discord threads, specific workflows
+- **Deep-dive into adjacent market** — tools in neighboring categories
 
 ### Deep Dive Quality Criteria
 
-Each deep-dive report must meet these minimum standards (past runs show wide quality variance when these aren't enforced):
+Each deep dive must:
+1. Answer a specific question (not just "research competitor X" — but "can competitor X's enterprise moat be broken?")
+2. Use Tier 1-2 evidence primarily
+3. Include at least 10 numbered citations with URLs
+4. End with a clear "so what" — what this means for the product
+5. Be honest about what it couldn't find or verify
 
-1. **Minimum 3,000 words** — a deep dive that's shorter isn't deep
-2. **At least 10 numbered citations with URLs** — no unsourced claims
-3. **Pricing data required** if the deep dive covers a competitor (tiers, price points, model type)
-4. **User sentiment required** if the deep dive covers user pain (direct quotes from Reddit/G2/HN with URLs)
-5. **At least 2 decision points** — each deep dive must answer "so what does this mean for the product?"
-6. **Honest uncertainty** — if data is sparse, say so explicitly rather than speculating
+No word minimums. Answer the question thoroughly, then stop. A focused 1,500-word deep dive that answers the question is better than a 5,000-word one that doesn't.
 
-Follow the same tool selection rule: WebSearch/WebFetch first, browser only when needed. Each browser agent **must close its tab/session before returning results**. If using playwright-cli, each agent gets its own unique session name prefixed with `${RUN_ID}`.
+Save each to `$RESEARCH_DIR/` with descriptive filenames.
 
-Save each deep-dive report to `$RESEARCH_DIR/` with a descriptive filename (e.g., `deep-dive-miria-competitor.md`, `deep-dive-coaching-pain-points.md`).
+## Phase 4 — Synthesize
 
-## Phase 4 — Keyword Research (optional, if user can run Google Keyword Planner)
-
-Generate a comma-separated list of 50-60 keywords for the user to paste into Google Keyword Planner. Organize by:
-
-1. **Core product keywords** — what the product is
-2. **Problem-aware keywords** — what users search when feeling the pain
-3. **Competitor keywords** — competitor names + "alternative"
-4. **Feature keywords** — specific capabilities
-5. **Trend keywords** — emerging category terms
-
-When the user pastes back the Keyword Planner results, analyze:
-- Which terms have volume and are trending
-- Which terms have high intent (high CPC = commercial intent)
-- Which terms are dead ends (zero volume)
-- Recommend a tiered keyword strategy
-
-## Phase 5 — Synthesize into Document
-
-Write the final synthesis document to `$RESEARCH_DIR/positioning-research.md`.
+Write the final document to `$RESEARCH_DIR/positioning-research.md`.
 
 ### Citation System
 
-Use numbered references throughout the document, like a research paper. This makes every claim verifiable.
+Numbered references throughout, like a research paper.
 
-- **Inline citations:** Use numbered brackets — `[1]`, `[2]`, `[3]` — immediately after the claim they support.
-- **Multiple sources for one claim:** `[1][2]` or `[1, 2]`.
-- **Quotes:** Always followed by their reference number.
-- **The References section** at the end lists every source with its full URL, title, author (if known), and date (if known).
+- Inline: `[1]`, `[2]`, `[1][2]`
+- References section at the end with full URL, title, author, date
+- Every factual claim needs a reference
+- Every user quote needs a direct URL
 
-Example: *"The AI coaching market is projected to reach $4.2B by 2028 [3], though current adoption remains concentrated in enterprise L&D departments [7][12]."*
+### Source Credibility Annotations
 
-Number references sequentially as they first appear in the document.
+When citing sources, annotate credibility where it matters:
+
+- `[3, competitor claim]` — this is what the company says about itself
+- `[7, user review]` — this is what a user actually experienced
+- `[12, analyst estimate]` — this is a paid report's projection
+
+This helps the reader weight evidence themselves.
 
 ### Document Structure
 
 ```markdown
-# [Product Name] — Market Research
+# [Product Name] — Positioning Research
 
 **Date:** [today]
 **Input:** [URL / Memo]
+**Verdict:** [One sentence: go / no-go / conditional go / needs validation]
 
 ---
 
-## 1. Executive Summary
+## 1. The Case Against
 
-The verdict — in 5-10 bullet points, a CEO who reads only this section should be able to make a go/no-go decision. Include:
-- Market size and growth direction (one line)
-- **Structural shifts:** the 1-2 forces reshaping this segment right now and whether they help or hurt
-- Competitive density: how crowded is this, and who's most dangerous
-- The core differentiator — and whether it's real or claimed
-- The single biggest risk
-- The recommended positioning (one sentence)
-- The #1 thing to do next
+Lead with why this might not work. This section earns the reader's trust — if you can articulate the strongest reasons to walk away, the positive findings that follow carry more weight.
 
-## 2. Market Opportunity
+- Failed or struggling companies in this space and why [N]
+- Strongest skeptic arguments found in practitioner communities [N]
+- Market risks: timing, adoption barriers, category confusion
+- Platform risk: which big players could enter and ship this as a feature [N]
+- What this research couldn't answer — data gaps and unknowns
 
-### Market Size
-- TAM / SAM / SOM estimates with sources [N]
-- How these numbers were derived — be transparent about confidence level
-- If hard data doesn't exist, say so and provide proxy estimates
+**Verdict on survivability:** After considering all the above, does the opportunity still hold? What specifically survives scrutiny?
 
-### Market Timing
-- Is this market emerging, growing, crowded, or consolidating?
-- Google Trends data for key category terms [N]
-- Funding activity in the space — are investors pouring in or pulling back? [N]
-- **Decision point:** Is the window open, closing, or not yet open?
+## 2. Market Reality
+
+### What Users Actually Say
+- Pain points ranked by frequency and intensity [N]
+- User language vs. product language — do they match?
+- Key quotes with source URLs [N]
+- Switching signals: why users leave current tools, what triggers the switch [N]
+
+### What Users Have Tried
+- Tools and workarounds mentioned, ranked by frequency
+- What works for them, what doesn't
+- The gap: what they wish existed but can't find
+
+### Employee Sentiment (Competitor Health)
+- Glassdoor/Blind signals on key competitors [N]
+- Talent flow direction — who's hiring, who's losing people
+- What this reveals about competitor stability and product direction
 
 ## 3. Competitive Landscape
 
 ### Competitor Overview
-- Competitor table (name, tagline, category, target audience, pricing, URL, relationship to product)
-- Visual competitive map showing positioning clusters and white space
+- Table: name, what users say about them (not their tagline), pricing, G2 rating, funding, URL
+- Positioning map showing clusters and white space
 
 ### Pricing Landscape
-- Price range across the category (lowest to highest)
-- Pricing model comparison (per-seat, usage, flat, freemium)
-- Where the pricing gaps are — is there an underserved price tier?
-- What pricing signals about willingness-to-pay in this market
+- Price range across category
+- Model comparison (per-seat, usage, flat, freemium)
+- Pricing gaps and what they signal about willingness-to-pay
 
 ### Most Dangerous Competitors
-- Deep dive on the 1-2 competitors that matter most
-- What they do well, where they're weak, and what they're likely to do next
+- 1-2 competitors that matter most, based on user evidence not marketing claims
+- What they do well (from user reviews), where they're weak (from negative reviews)
 - **Decision point:** Can you win against them, and on what axis?
 
-## 4. User Research
+## 4. Market Sizing
 
-### How Users Describe the Problem
-- Their language vs. the product's language — do they match?
-- Pain points ranked by frequency and intensity [N]
-- Key quotes with source [N]
+### Bottom-Up (Primary)
+- Number of potential customers in target segment, with sources [N]
+- Realistic price point × realistic adoption rate (0.5-2%) = grounded estimate
+- Math shown, assumptions explicit
 
-### What Users Have Tried
-- Tools and workarounds users mention
-- What's working for them, what's not
+### Top-Down (Supplement)
+- Analyst estimates with confidence flags [N]
+- Context: who produced the report and why their estimates may be inflated
 
-### Switching Signals
-- Why users leave their current tool — the specific triggers [N]
-- What they look for in an alternative
-- **Decision point:** What's the switching trigger you can own?
+### Demand Signals
+- Job postings in the category [N]
+- Funding velocity — direction and what it means [N]
+- Shutdowns and pivots — what failed companies signal about the market [N]
 
-## 5. Go-to-Market Landscape
+### Market Timing
+- Emerging / growing / crowded / consolidating?
+- Trend data with source [N]
+- **Decision point:** Is the window open, closing, or not yet open?
 
-### How Competitors Acquire Users
-- Channel breakdown: organic, paid, community, partnerships, marketplaces
-- What's working — which competitors are growing and how [N]
-- Content and thought leadership: who owns the conversation
+## 5. Structural Shifts
 
-### Available Channels
-- Underexploited channels competitors aren't using well
-- Partnership and integration opportunities
-- **Decision point:** What's the most capital-efficient GTM path?
-
-## 6. Value Proposition Analysis
-- Ranking table: each value prop scored on market need, differentiation, evidence strength
-- Which props are validated by user research vs. only claimed
-- Which props are truly defensible vs. easily copied
-- **Decision point:** Which 1-2 props should lead your messaging?
-
-## 7. Positioning Strategy
-- The core tension (if any — e.g., keyword momentum vs. audience fit)
-- Recommended positioning and why
-- One-liner
-- Differentiation from nearest neighbors
-- Messaging tone (augment vs. replace, etc.)
-
-## 8. Structural Shifts
-
-This section identifies forces that are fundamentally reshaping the segment — not incremental trends, but paradigm changes that alter who wins and how.
+Forces reshaping this segment — not trends, but paradigm changes.
 
 For each shift:
-- **The shift:** What's changing and why (1-2 sentences)
-- **Evidence:** Concrete signals — product launches, funding patterns, user behavior, practitioner discourse [N]
-- **Winners and losers:** Which players/segments benefit, which are threatened
-- **Timeline:** Happening now / 1-2 years / 3-5 years
-- **Implication for the product:** Does this create opportunity, threaten the premise, or require repositioning?
-- **Decision point:** What should the product do about this shift?
+- **The shift:** What's changing and why
+- **Evidence:** Concrete signals [N]
+- **Winners and losers**
+- **Timeline:** Now / 1-2 years / 3-5 years
+- **Implication:** Does this create opportunity, threaten the premise, or require repositioning?
 
-Examples of structural shifts to look for:
-- Technology commoditization (e.g., AI making code/design/content near-free)
-- Buyer behavior changes (e.g., self-serve replacing enterprise sales)
-- Category convergence (e.g., two adjacent categories merging into one)
-- Regulatory changes that reshape the playing field
-- Platform shifts (e.g., mobile-first, API-first, agent-first)
-- Talent/skill commoditization (e.g., no-code enabling non-technical founders)
+## 6. Positioning Strategy
 
-Be specific and evidence-based. "AI will change everything" is not a structural shift analysis. "GPT-4o's March 2026 code agent scored 87% on SWE-bench, up from 33% a year ago, which is pushing [category] tools from 'nice to have' to 'existential' for their users" is.
+- The core tension (if any)
+- Recommended positioning and why — grounded in user language from Section 2, not aspirational marketing
+- One-liner
+- Differentiation from nearest neighbors — which differentiators are real (evidence-backed) vs. claimed
+- Value props ranked by: market need (from user research), defensibility, evidence strength
 
-## 9. Risks & Threats
+## 7. Pricing Recommendation
 
-### Platform Risk
-- Which big players could enter this space or add this feature? [N]
-- Recent acquisitions or announcements that signal intent [N]
-- How defensible is the product if a major platform moves in?
+- Recommended price point(s) with rationale tied to competitive gaps in Section 3
+- Pricing model with justification
+- Tier structure if applicable
+- Evidence basis: which data points support this price
+- **What's NOT validated:** explicitly flag that willingness-to-pay is inferred, not tested. Recommend specific validation steps
 
-### Market Risks
-- Where the product's claims diverge from market reality
-- Positioning vulnerabilities competitors could exploit
-- Timing risks — too early, too late, or wrong market conditions
+## 8. What To Do Next
 
-### Blind Spots
-- What this research couldn't answer — data gaps, unknowns
-- Areas that need validation before committing
-
-## 10. Keyword & Search Strategy
-- Tiered keyword table (awareness, intent, niche, competitor)
-- Search strategy implications
-- Which terms have real volume and commercial intent
-
-## 11. Pricing Recommendation
-
-Past research runs consistently identify pricing gaps but stop short of a concrete recommendation. This section must go further:
-
-- **Recommended price point(s)** with rationale tied to competitive gaps identified in Section 3
-- **Pricing model** (per-seat, usage-based, flat, freemium) with justification
-- **Tier structure** if applicable (free, starter, pro, enterprise)
-- **Evidence basis** — which data points support this price (competitor benchmarks, willingness-to-pay signals from user research, funding-implied revenue targets)
-- **What's NOT validated** — explicitly flag that willingness-to-pay is inferred from competitor pricing and user sentiment, not from primary research (conjoint analysis, pricing surveys). Recommend specific validation steps (e.g., "test $X vs $Y on landing page", "run 10 customer development calls focused on pricing")
-- **Decision point:** What price to launch at and what triggers a price change
-
-## 12. Next Steps
-- Prioritized action list — what to do first, second, third
-- Quick wins vs. strategic bets
-- What to validate before scaling
+- Prioritized action list
+- What to validate before committing (specific experiments: landing page tests, interview targets, pre-sale approaches)
+- What to kill or deprioritize based on findings
 
 ---
 
 ## References
 
-[1] Author (if known). "Title." *Source/Publication.* Date (if known). URL
+[1] Author. "Title." *Source.* Date. URL
 [2] ...
-[3] ...
 ```
+
+### Writing Rules
+
+**Audience: Decision makers who need the truth, not reassurance.**
+
+- If the product is poorly positioned, say so. If a differentiator is weak, call it out.
+- Surface hard truths in Section 1, not buried in Section 7.
+- Every section answers "so what?" — not just describes the landscape.
+- No filler, no hedging, no "it could be argued that."
+- Challenge assumptions. In URL mode, compare website claims against user evidence.
+- **Rank everything.** Don't present options without a recommendation. Take a position even when evidence is mixed — and state the risk of being wrong.
+- **Distinguish claimed vs. evidenced.** When a finding comes from competitor marketing, say so. When it comes from user reviews, say so. Let the reader see the evidence quality.
+
+### Evidence Standards
+
+- Quantify: "42 comments," "337 upvotes," "$299-999/mo"
+- Quote directly when user words are more powerful than summary
+- Rank by frequency: pain points in 5 threads > pain points in 1
+- Prefer negative/critical evidence — it's rarer and more informative than positive
+- If a market size number comes from a report publisher that sells reports, flag it
 
 ## Browser Protocol Reference
 
-This section applies to agents that need browser interaction (Reddit, Google Trends, fallback).
-
-### CRITICAL: Browser Tab/Session Lifecycle
-
-Orphaned Chrome windows/tabs are the #1 operational problem with this skill. Every browser tab or session that opens MUST be closed — no exceptions, even if the agent errors out or times out.
-
-### Chrome (claude-in-chrome) — Preferred
-
-**Opening and navigating:**
-```
-mcp__claude-in-chrome__tabs_create_mcp → returns tabId
-mcp__claude-in-chrome__navigate(tabId, url)
-mcp__claude-in-chrome__read_page(tabId)  # get page content
-```
-
-**Clicking elements:**
-```
-mcp__claude-in-chrome__read_page(tabId)  # find coordinates of element
-mcp__claude-in-chrome__computer(tabId, action: "click", x, y)
-```
-
-**Scrolling:**
-```
-mcp__claude-in-chrome__javascript_tool(tabId, "window.scrollBy(0, 800)")
-mcp__claude-in-chrome__read_page(tabId)
-```
-
-**Closing when done:**
-```
-mcp__claude-in-chrome__javascript_tool(tabId, "window.close()")
-```
-
-### Playwright-cli — Fallback
-
-Only use when chrome tools are unavailable.
-
-**Rules:**
-- **Never use `--headed`.** Always run headless.
-- Each agent MUST use a session name prefixed with the run ID (`-s=${RUN_ID}-reddit`, `-s=${RUN_ID}-trends`, etc.)
-- **Close the session as soon as you're done reading.**
-- **Each agent closes its own session before returning results.** The last thing an agent does is `playwright-cli -s=SESSION_NAME close`.
-- Always `sleep 4` after navigation before taking a snapshot.
-
-### Obstacle Handling (both tools)
-
-After every navigation, handle obstacles:
-
-1. **Cookie / consent banners:** Click "Accept", "Accept all", "I agree", "Got it".
-2. **CAPTCHA / "Verify you are human":** Attempt to solve. If unsolvable after 2 attempts, close and skip the URL.
-3. **Login walls / paywalls:** Do NOT log in. Note the wall and move on.
-4. **Age gates / region selectors:** Click through with any reasonable option.
-5. **Newsletter popups / modal overlays:** Click "X", "Close", or "No thanks".
-6. **Redirect loops / blank pages:** Wait and retry once. If still empty, close and skip.
-
-### Browser Cleanup (mandatory — parent orchestrator)
-
-After ALL agents for this run have completed, the parent orchestrator MUST run cleanup.
-
-**If using playwright-cli:**
-```bash
-# Force-close all sessions for this run
-for session_name in reddit trends discovery reddit-deep fallback; do
-  playwright-cli -s="${RUN_ID}-${session_name}" close 2>/dev/null || true
-done
-
-for session in $(ls .playwright-cli/${RUN_ID}-* 2>/dev/null); do
-  playwright-cli -s="$(basename "$session")" close 2>/dev/null || true
-done
-
-mkdir -p "$RESEARCH_DIR/browser-data" 2>/dev/null
-mv .playwright-cli/${RUN_ID}-* "$RESEARCH_DIR/browser-data/" 2>/dev/null || true
-rmdir .playwright-cli/ 2>/dev/null || true
-```
-
-**If using Chrome:** Tabs should already be closed by each agent. No additional cleanup needed since Chrome manages its own process.
-
-## Writing Rules
-
-### Audience: C-level Decision Makers
-
-This document will be read by founders, CEOs, and executives who need to make strategic decisions. Write accordingly:
-
-- **Be brutally honest.** If the product is poorly positioned, say so. If a claimed differentiator is weak, call it out. The reader needs the truth, not reassurance. Sugarcoating wastes their time and leads to bad decisions.
-- **Surface hard truths early.** Don't bury bad news in section 7. If the market is crowded, the differentiation is thin, or the timing is wrong, lead with that.
-- **Make every section decision-ready.** Each section should answer "so what?" and "what do I do about this?" — not just describe the landscape.
-- **Be direct and concise.** No filler, no hedging, no "it could be argued that." State the finding, back it with evidence, give the implication.
-- **Challenge assumptions.** If the product's positioning contradicts what the market evidence shows, say so explicitly. In URL mode, compare what the website claims against what users actually say and competitors actually do.
-
-### Be Opinionated
-
-Rank everything. Don't present options without a recommendation. The document should say "do this, not that" — not "here are some things to consider."
-
-When the evidence is mixed, say so — but still take a position and explain the risk of being wrong.
-
-### Sources and Attribution
-
-Use the numbered citation system described in Phase 5. Every factual claim must have a reference number. In the References section at the end, format each source as:
-- Reddit threads: `[N] "Thread title." r/SubredditName. Date. URL` — include upvote count in the inline text
-- Competitor sites: `[N] "Page title." CompanyName. URL`
-- Blog posts / articles: `[N] Author. "Title." Publication. Date. URL`
-- Industry reports: `[N] "Report title." Publisher. Date. URL`
-- Crunchbase / funding data: `[N] "Company — Crunchbase." URL`
-
-### Evidence Density
-
-- Quantify: "42 comments," "337 upvotes," "$299-999/mo"
-- Quote directly when the user's words are more powerful than a summary
-- Rank by frequency: pain points that appear in 5 threads matter more than those in 1
-
-### Structure
-
-- Lead every section with its conclusion — the "so what"
-- Use tables for comparisons
-- Use code blocks for visual maps (competitive landscape diagrams)
-- Keep paragraphs under 3 sentences
-- End each major section with a clear **Implication** or **Decision point** — what this means for the product strategy
+**If an agent needs browser access**, it must read `.claude/skills/positioning-research/BROWSER_PROTOCOL.md` before using any browser tool.
 
 ## Self-Review Checklist
 
 Before saving the final document:
 
-- [ ] Executive summary delivers the full verdict — a CEO who reads only this section can make a go/no-go decision
-- [ ] Hard truths and weaknesses are surfaced, not buried — the document doesn't read like a pitch deck
-- [ ] Market sizing section exists with TAM/SAM/SOM estimates (even rough ones) and honest confidence levels
-- [ ] Pricing landscape is analyzed, not just listed
-- [ ] **Pricing recommendation section exists** with concrete price point, tier structure, evidence basis, and explicit flags for what's unvalidated
-- [ ] Switching signals are captured — why users leave their current tool
-- [ ] GTM channels are mapped with a recommendation on the most efficient path
-- [ ] Platform risk is assessed — which big players could enter and kill this
-- [ ] Every competitor entry has a link to their homepage
-- [ ] Every factual claim has a numbered citation [N]
-- [ ] **Every user quote has a direct URL** to the source thread/review — no secondhand quotes without explicit `[unverified]` marking
-- [ ] References section at the end lists every source with full URL, title, author, and date
-- [ ] **G2/Capterra reviews are included** in user research — not just Reddit
-- [ ] Value props are ranked, not just listed — and weak ones are called out as weak
-- [ ] The document takes a clear, defensible position on positioning
-- [ ] Keyword strategy is tiered with rationale
+- [ ] Section 1 ("The Case Against") is substantive — it would make an optimist uncomfortable
+- [ ] Failed companies or skeptic arguments are cited, not just generic risks
+- [ ] Market sizing uses bottom-up math, not just analyst report numbers
+- [ ] Analyst estimates are flagged with confidence level and publisher context
+- [ ] User quotes have direct URLs — no secondhand quotes without `[unverified]` marking
+- [ ] Competitive landscape is built from user/third-party evidence, not competitor marketing copy
+- [ ] Competitor taglines and hero copy are absent (or explicitly marked as competitor claims)
+- [ ] G2 reviews are included — especially 2-3 star reviews
+- [ ] Switching signals are captured with specific triggers
+- [ ] Pricing recommendation exists with concrete price, evidence basis, and unvalidated flags
+- [ ] Every major section ends with a decision point or implication
+- [ ] Source credibility is annotated where it matters
+- [ ] The document takes a clear position on positioning
 - [ ] Risks are concrete, specific, and honest — not generic disclaimers
-- [ ] Every major section ends with a **Decision point** or **Implication**
-- [ ] **Deep dive reports each meet quality criteria** (3,000+ words, 10+ citations, pricing data if competitor-focused, user sentiment if pain-focused)
-- [ ] Next steps are actionable and prioritized
-- [ ] All browser tabs (Chrome) or playwright-cli sessions for this run are closed and artifacts cleaned up
-- [ ] All intermediate reports (competitive-landscape.md, reddit-pain-points.md, trends-validation.md, market-sizing-gtm.md, deep-dives) are saved in `$RESEARCH_DIR/`
-- [ ] Final synthesis is written to `$RESEARCH_DIR/positioning-research.md`
-- [ ] Nothing was written to the project root — everything is inside `research/{name}/`
+- [ ] Next steps include specific validation experiments, not just "do more research"
+- [ ] All browser sessions are closed and artifacts cleaned up
+- [ ] All files are in `$RESEARCH_DIR/`, nothing in project root
