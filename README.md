@@ -1,6 +1,6 @@
 # Positioning Research
 
-A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that conducts deep positioning research for any product or idea. Give it a URL or a short product description and it produces a positioning document with competitive analysis, user research, pricing recommendations, and go-to-market strategy.
+A [Claude Code](https://docs.anthropic.com/en/docs/claude-code) skill that conducts deep positioning research for any product or idea. Give it a URL or a short product description and it produces an interconnected research wiki with competitive analysis, user research, pricing recommendations, and go-to-market strategy. The output is an [Obsidian](https://obsidian.md)-compatible vault — each research page uses YAML frontmatter, `[[wikilinks]]`, and tags, so you can navigate findings through Obsidian's graph view, backlinks panel, and search.
 
 The research is oriented around **invalidation** — finding reasons the thesis is wrong, then seeing what survives.
 
@@ -12,37 +12,44 @@ This skill automates the kind of market research that typically takes a consulta
 
 1. **Understands the product** — scrapes a website or works from your description
 2. **Asks clarifying questions** — so it researches the right angles
-3. **Runs parallel research agents** (on Sonnet for cost efficiency) — competitive reality check (third-party evidence only), user pain points & switching signals (Reddit, G2, Discord, Glassdoor), trend validation & structural shifts, market sizing & invalidation
+3. **Runs parallel research agents** (on Sonnet for cost efficiency) — competitive landscape (third-party evidence only), user pain points & switching signals (Reddit, G2, Discord, Glassdoor), trends & structural shifts, market sizing & invalidation
 4. **Asks before going deeper** — reviews Phase 2 findings with you and recommends targeted deep dives (1-2 agents) rather than automatically launching them
-5. **Synthesizes everything** into a single positioning document that leads with "The Case Against" — earning trust by surfacing hard truths before building the positive case
+5. **Synthesizes everything** into an Obsidian wiki — interconnected pages with wikilinks, tags, and a Map of Content index. Leads with "The Case Against" to earn trust by surfacing hard truths before building the positive case
 
 ### Output Structure
 
-Each research run creates a folder under `research/` with:
+Each research run creates an Obsidian-compatible wiki under `research/`:
 
 ```
-research/{product-name}-positioning/
-├── competitive-landscape.md      # Third-party evidence on competitors, pricing gaps
-├── user-signals.md               # User language, pain points, switching triggers, employee sentiment
-├── trends-validation.md          # Funding/shutdown signals, structural shifts, analyst coverage
-├── market-sizing-gtm.md          # Bottom-up sizing, invalidation findings, platform risk
-├── deep-dive-*.md                # 1-2 targeted investigations (opt-in)
-├── positioning-research.md       # Final synthesis (the main deliverable)
-└── browser-data/                 # Archived browser session artifacts
+research/{product-name}-{research-topic}/
+├── index.md                    # Map of Content — the entry point
+├── verdict.md                  # The Case Against + go/no-go decision
+├── market-reality.md           # User pain points, switching signals, quotes
+├── competitive-landscape.md    # Overview table, pricing landscape, positioning map
+├── competitors/
+│   ├── {competitor-slug}.md    # One page per major competitor (top 3-5)
+│   └── ...
+├── market-sizing.md            # Bottom-up + top-down sizing, demand signals
+├── trends-and-shifts.md        # Structural shifts, timing, funding signals
+├── positioning-strategy.md     # Positioning + pricing recommendation
+├── next-steps.md               # Validation experiments, action items
+├── sources.md                  # Centralized numbered reference list
+└── deep-dive-*.md              # Targeted investigations (opt-in)
 ```
 
-The final `positioning-research.md` is an 8-section document:
+Every page uses YAML frontmatter (date, type, product, tags) and `[[wikilinks]]` to cross-reference other pages. Open the research folder in [Obsidian](https://obsidian.md) to get graph view, backlinks, and tag-based filtering across your findings.
 
-1. **The Case Against** — why this might not work (failed companies, skeptic arguments, platform risk, data gaps)
-2. **Market Reality** — what users actually say, what they've tried, employee sentiment on competitors
-3. **Competitive Landscape** — competitor overview from user evidence (not marketing copy), pricing landscape, most dangerous competitors
-4. **Market Sizing** — bottom-up math (primary), top-down as supplement with confidence flags, demand signals, market timing
-5. **Structural Shifts** — forces reshaping the segment with evidence, winners/losers, timelines, and implications
-6. **Positioning Strategy** — recommended positioning grounded in user language, value props ranked by evidence strength
-7. **Pricing Recommendation** — concrete price points with evidence basis and explicit flags on what's not validated
-8. **What To Do Next** — prioritized actions, specific validation experiments, what to kill
+The wiki covers:
 
-Every claim is backed by numbered citations with URLs and source credibility annotations (`[N, user review]`, `[N, competitor claim]`, `[N, analyst estimate]`).
+- **The Case Against** (`verdict.md`) — why this might not work: failed companies, skeptic arguments, platform risk, data gaps, and a go/no-go verdict
+- **Market Reality** (`market-reality.md`) — what users actually say, what they've tried, switching triggers, employee sentiment on competitors
+- **Competitive Landscape** (`competitive-landscape.md` + `competitors/*.md`) — overview from user evidence (not marketing copy), with a dedicated page per major competitor
+- **Market Sizing** (`market-sizing.md`) — bottom-up math (primary), top-down as supplement with confidence flags, demand signals
+- **Trends & Structural Shifts** (`trends-and-shifts.md`) — forces reshaping the segment with evidence, winners/losers, timelines, market timing
+- **Positioning Strategy** (`positioning-strategy.md`) — recommended positioning grounded in user language, pricing recommendation with evidence basis
+- **Next Steps** (`next-steps.md`) — prioritized actions, specific validation experiments, what to kill
+
+Every claim is backed by numbered citations that resolve in `sources.md`, annotated with credibility tags (`user review`, `competitor claim`, `analyst estimate`).
 
 ## Prerequisites
 
@@ -151,11 +158,11 @@ Start Claude Code from the project directory, then invoke the skill:
 2. It asks you 2-5 clarifying questions — answer these, they shape the research
 3. It launches 4 parallel research agents (takes ~15-20 min)
 4. It reviews findings with you and recommends targeted deep dives — you decide whether to go deeper or proceed
-5. It synthesizes everything into the final positioning document, leading with "The Case Against"
+5. It synthesizes everything into an interconnected wiki, leading with "The Case Against"
 
 ### After the research
 
-The positioning document is a starting point, not the final word. Once the run completes, keep the conversation going — Claude still has all the research context loaded. This is where you get the most value:
+The wiki is a starting point, not the final word. Once the run completes, keep the conversation going — Claude still has all the research context loaded. This is where you get the most value:
 
 - **Deep dive on a specific angle.** "Tell me more about how competitor X prices their enterprise tier" or "What exactly are users saying about onboarding friction?"
 - **Cross-check references.** Ask Claude to re-read a specific source and verify a claim. Citations can drift during synthesis — spot-checking keeps the document honest.
@@ -163,7 +170,7 @@ The positioning document is a starting point, not the final word. Once the run c
 - **Explore adjacent questions.** "What would the positioning look like if we targeted SMBs instead of enterprise?" or "How does this change if we go freemium?"
 - **Request additional research.** "Can you look into the regulatory landscape for this market?" or "Find more Reddit threads about migration pain from competitor Y."
 
-The intermediate reports (`competitive-landscape.md`, `reddit-pain-points.md`, etc.) are also useful to reference directly — ask Claude to pull specific data from them.
+Open the research folder in Obsidian to browse findings visually — the graph view shows how competitors, market signals, and positioning recommendations connect, and the backlinks panel surfaces relationships you might miss reading linearly.
 
 ## Configuration
 
@@ -182,24 +189,31 @@ This pre-approves all the tools the skill needs. Review the file before applying
 - **Don't be alarmed by "The Case Against."** The document leads with reasons the thesis might be wrong — this is by design. It earns trust by surfacing hard truths before building the positive case. The findings that survive scrutiny are the ones worth betting on.
 - **Browser tools are a fallback.** The skill uses WebSearch and WebFetch for ~95% of research. Browser automation (Chrome or playwright-cli) is only used when a page blocks static fetching.
 - **Research takes time.** A full run takes 30-40 minutes. The parallel agents do the heavy lifting.
-- **Review intermediate reports.** The individual agent reports in the research folder are useful on their own — you don't have to wait for the final synthesis.
+- **Open the wiki in Obsidian.** Point Obsidian at the research folder to get graph view, backlinks, and tag filtering. The wiki is designed for non-linear exploration — follow the links that matter to you.
 
 ## Example Output
 
-Here's what a research folder looks like after a complete run:
+Here's what a research wiki looks like after a complete run:
 
 ```
 research/ai-qa-testing-positioning/
-├── competitive-landscape.md       (15 KB)
-├── user-signals.md                (18 KB)
-├── trends-validation.md           (10 KB)
-├── market-sizing-gtm.md           (14 KB)
+├── index.md                       (2 KB)   ← start here
+├── verdict.md                     (8 KB)
+├── market-reality.md              (12 KB)
+├── competitive-landscape.md       (10 KB)
+├── competitors/
+│   ├── cypress.md                 (6 KB)
+│   ├── playwright.md              (6 KB)
+│   └── selenium.md                (5 KB)
+├── market-sizing.md               (8 KB)
+├── trends-and-shifts.md           (7 KB)
+├── positioning-strategy.md        (10 KB)
+├── next-steps.md                  (4 KB)
 ├── deep-dive-top-competitor.md    (12 KB)
-├── positioning-research.md        (45 KB)  ← main deliverable
-└── browser-data/
+└── sources.md                     (6 KB)
 ```
 
-The final positioning document is typically 25-50 KB — a thorough, opinionated analysis that leads with invalidation and backs every claim with cited evidence.
+The wiki totals 80-100 KB across all pages — a thorough, opinionated analysis that leads with invalidation and backs every claim with cited evidence. Open it in Obsidian for the best reading experience.
 
 ## License
 
