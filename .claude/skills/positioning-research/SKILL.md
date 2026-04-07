@@ -1,6 +1,6 @@
 ---
 name: positioning-research
-description: Conduct deep market and positioning research for any product or idea. Works in two modes — give it a URL to analyze an existing product's website, or give it a short memo describing your idea. Uses WebSearch and WebFetch for most research (including Reddit via site:reddit.com + old.reddit.com, and G2/Capterra reviews). Browser tools (Chrome or playwright-cli) used only as fallback. Asks clarifying questions before diving in. Produces a comprehensive positioning document with concrete pricing recommendations. Use this whenever the user mentions market research, positioning, competitive analysis, or wants to understand how a product fits in its market.
+description: Conduct deep market and positioning research for any product or idea. Works in two modes — give it a URL to analyze an existing product's website, or give it a short memo describing your idea. Uses WebSearch and WebFetch for most research (including Reddit via site:reddit.com + old.reddit.com, and G2/Capterra reviews). Browser tools (Chrome or playwright-cli) used only as fallback. Asks clarifying questions before diving in. Produces an Obsidian wiki — interconnected markdown pages with wikilinks, YAML frontmatter, and a Map of Content index. Use this whenever the user mentions market research, positioning, competitive analysis, or wants to understand how a product fits in its market.
 argument-hint: "[URL or short product memo, e.g. 'https://linear.app' or 'A tool that helps sales teams automate follow-up emails based on CRM activity']"
 ---
 
@@ -21,19 +21,95 @@ This skill exists to help someone make a high-stakes decision — whether to bui
 
 When Tier 4 sources contradict Tier 1-2 sources, Tier 1-2 wins. Always. A competitor's homepage says "loved by 10,000 teams" but G2 reviews say "we churned after 3 months" — lead with the G2 data.
 
-## Step 0 — Create an Isolated Research Workspace
+## Step 0 — Create the Research Wiki
 
-Before doing anything else, create a workspace folder for this research run inside the `research/` directory.
+Before doing anything else, create the wiki folder structure inside `research/`.
 
 **Naming convention:** `{product-name}-{research-topic}` (lowercase kebab-case)
 
 ```bash
 RESEARCH_DIR="research/{product-name}-{research-topic}"
-mkdir -p "$RESEARCH_DIR"
+mkdir -p "$RESEARCH_DIR/competitors"
 RUN_ID="research-$(date +%Y%m%d-%H%M%S)"
 ```
 
 All playwright-cli sessions must use session names prefixed with `${RUN_ID}`. **All files go into `$RESEARCH_DIR/`.** Nothing in the project root.
+
+### Wiki Output Structure
+
+Every research run produces this wiki:
+
+```
+$RESEARCH_DIR/
+├── index.md                    # Map of Content — the entry point
+├── verdict.md                  # The Case Against + go/no-go decision
+├── market-reality.md           # User pain points, switching signals, quotes
+├── competitive-landscape.md    # Overview table, pricing landscape, positioning map
+├── competitors/
+│   ├── {competitor-slug}.md    # One page per major competitor (top 3-5)
+│   └── ...
+├── market-sizing.md            # Bottom-up + top-down sizing, demand signals
+├── trends-and-shifts.md        # Structural shifts, timing, funding signals
+├── positioning-strategy.md     # Positioning + pricing recommendation
+├── next-steps.md               # Validation experiments, action items
+└── sources.md                  # Centralized numbered reference list
+```
+
+### Page Format
+
+Every wiki page uses this format:
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - positioning
+  - {relevant-tags}
+---
+
+# Page Title
+
+Content here. Link to other pages with [[page-name]] and to specific
+sections with [[page-name#section-heading]]. Link to competitors
+with [[competitors/{slug}]].
+
+Cite sources with numbered references like [1] that link to [[sources]].
+```
+
+**Tags to use across pages:**
+- `positioning`, `competitive`, `market-sizing`, `user-voice`, `pricing`, `risk`, `structural-shift`, `demand-signal`
+- Add product/category-specific tags as appropriate
+
+### Wikilink Conventions
+
+- **Cross-page links:** `[[verdict]]`, `[[market-reality]]`, `[[competitive-landscape]]`
+- **Section links:** `[[market-reality#switching-signals]]`, `[[verdict#platform-risk]]`
+- **Competitor links:** `[[competitors/railway]]`, `[[competitors/render]]`
+- **Source citations:** Use numbered `[1]` inline, all resolved in `[[sources]]`
+- **Backlink awareness:** When page A discusses something covered in depth on page B, link to it. This makes Obsidian's backlinks panel and graph view useful.
+
+### Sources Page
+
+`sources.md` is shared across all pages. Format:
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - sources
+---
+
+# Sources
+
+[1] Author. "Title." *Source.* Date. URL — `user review` | `competitor claim` | `analyst estimate` | `industry report`
+[2] ...
+```
+
+The credibility annotation after the URL helps readers weight evidence at a glance. Every factual claim in any wiki page needs a reference number that resolves here.
 
 ## Step 1 — Determine Input Mode
 
@@ -138,7 +214,9 @@ This means a Reddit thread that's 80K tokens raw becomes a 500-token extract. Th
 
 Launch **4 parallel agents** using `model: "sonnet"`. All agents use the Haiku summarization layer for WebFetch (see above). They use WebSearch directly.
 
-### Agent 1: Competitive Reality Check (Third-Party Evidence Only)
+Each agent writes directly to wiki pages — these are first-class output, not intermediate files. Agents must follow the page format (YAML frontmatter, wikilinks, numbered citations). Each agent also appends its sources to a temporary `sources-partial-{N}.md` file; these get merged into `sources.md` during synthesis.
+
+### Agent 1: Competitive Landscape → `competitive-landscape.md` + `competitors/*.md`
 
 This agent builds the competitive picture from *external evidence*, not competitor marketing copy. The goal is to understand what competitors actually deliver, not what they claim.
 
@@ -168,11 +246,50 @@ Read competitor pricing pages via WebFetch — but treat pricing as factual data
 - Count open roles that would use tools in this category
 - Note which companies are hiring — this is a real demand signal, harder to fake than market reports
 
-Save to `$RESEARCH_DIR/competitive-landscape.md` (**max 2,000 words**): competitor table (name, what users actually say, pricing, G2 rating, URL), pricing landscape, positioning gaps, job posting demand signals. Be dense — tables over prose.
+**Output — write two things:**
+
+1. **`competitive-landscape.md`** — Overview page with: competitor table (name, what users say, pricing, G2 rating, URL), pricing landscape analysis, positioning map showing clusters and white space, job posting demand signals. Link to each competitor's detail page with `[[competitors/{slug}]]`. Max 1,500 words.
+
+2. **`competitors/{slug}.md`** for each of the top 3-5 competitors — one page per competitor containing:
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - competitive
+  - competitor
+---
+
+# {Competitor Name}
+
+**URL:** ...
+**Pricing:** ...
+**G2 Rating:** ...
+**Funding:** ...
+
+## What Users Actually Say
+
+Key quotes from G2, Reddit, HN — with source numbers linking to [[sources]].
+
+## Strengths (from user evidence)
+
+## Weaknesses (from user evidence)
+
+## Employee Sentiment
+
+Glassdoor/Blind signals if available.
+
+## Threat Assessment
+
+How dangerous is this competitor and on what axis? Link to relevant
+[[market-reality#switching-signals]] and [[trends-and-shifts]] as needed.
+```
 
 **What NOT to include:** competitor taglines, hero copy, or self-described positioning. If you reference what a competitor claims, explicitly frame it as "Competitor X claims..." and contrast it with user evidence.
 
-### Agent 2: User Pain Points & Switching Signals
+### Agent 2: User Pain Points → `market-reality.md`
 
 This agent gathers authentic user language. It is the most important agent — user voice is the foundation of everything else.
 
@@ -229,18 +346,47 @@ WebSearch: "[competitor name]" glassdoor OR blind employee review
 
 This is Tier 2 evidence — treat it seriously.
 
-**What to extract across all layers:**
-- How users describe the problem (their words, not the product's words)
-- What they've tried and what failed
-- Switching triggers — the specific moment they decided to leave
-- What they wish existed
-- Employee sentiment about key competitors (morale, direction, talent retention)
+**Output — write `market-reality.md`:**
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - user-voice
+  - positioning
+---
+
+# Market Reality
+
+## What Users Actually Say
+
+Pain points ranked by frequency and intensity, as a table.
+User language vs. product language — do they match?
+Key quotes with source numbers → [[sources]].
+
+## Switching Signals
+
+Why users leave current tools. Specific triggers.
+Link to relevant [[competitors/{slug}]] pages.
+
+## What Users Have Tried
+
+Tools and workarounds mentioned, ranked by frequency.
+What works, what doesn't, the gap.
+
+## Employee Sentiment
+
+Glassdoor/Blind signals on key competitors.
+Talent flow direction. Links to [[competitors/{slug}#employee-sentiment]].
+```
+
+Max 2,000 words. Prioritize direct quotes over summaries — quotes are the raw material the synthesis needs.
 
 **Citation rule: Every quote MUST have a direct URL.** No secondhand quotes. If you can't link to the original, mark as `[unverified — secondhand source]`.
 
-Save to `$RESEARCH_DIR/user-signals.md` (**max 2,500 words**): user language, pain points ranked by frequency, switching triggers, competitor employee sentiment, key quotes with URLs. Prioritize direct quotes over summaries — quotes are the raw material the synthesis needs.
-
-### Agent 3: Trend Validation & Structural Shifts
+### Agent 3: Trends & Structural Shifts → `trends-and-shifts.md`
 
 **Google Trends — try browser first, fall back to proxies:**
 
@@ -276,8 +422,6 @@ WebSearch: "[category]" AI impact OR automation OR "no longer need" [current yea
 WebSearch: "[adjacent technology]" replacing "[category]"
 ```
 
-For each shift: what's changing, who wins/loses, timeline, evidence, implication for the product.
-
 **Analyst coverage (contextualize, don't trust blindly):**
 ```
 WebSearch: "[category]" Gartner OR Forrester OR "magic quadrant" [current year]
@@ -285,9 +429,51 @@ WebSearch: "[category]" Gartner OR Forrester OR "magic quadrant" [current year]
 
 If Gartner has a Magic Quadrant → established category. Market Guide → emerging. Nothing → either too niche or too new.
 
-Save to `$RESEARCH_DIR/trends-validation.md` (**max 1,500 words**): trend data with sources, funding/shutdown signals, structural shifts with evidence and timeline, analyst coverage context.
+**Output — write `trends-and-shifts.md`:**
 
-### Agent 4: Market Sizing & Invalidation
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - structural-shift
+  - demand-signal
+---
+
+# Trends & Structural Shifts
+
+## Search Interest
+
+Trend data with sources.
+
+## Funding & Exits
+
+Funding velocity, shutdowns, acquisitions. What the money signals say.
+Link to [[competitors/{slug}]] where relevant.
+
+## Structural Shifts
+
+For each shift:
+- **The shift:** What's changing and why
+- **Evidence:** Concrete signals [N]
+- **Winners and losers** — link to [[competitors/{slug}]] as appropriate
+- **Timeline:** Now / 1-2 years / 3-5 years
+- **Implication:** Does this create opportunity or threaten the premise?
+
+## Analyst Coverage
+
+Gartner/Forrester positioning. Confidence flags on estimates.
+
+## Market Timing
+
+Emerging / growing / crowded / consolidating?
+**Decision point:** Is the window open, closing, or not yet open?
+```
+
+Max 1,500 words.
+
+### Agent 4: Market Sizing & Invalidation → `market-sizing.md` + `verdict.md`
 
 This agent does two things: size the market **and** actively look for reasons the thesis is wrong.
 
@@ -338,11 +524,82 @@ Look for:
 
 This is the most important step. If you can't find reasons the thesis might be wrong, you haven't looked hard enough.
 
-Save to `$RESEARCH_DIR/market-sizing-gtm.md` (**max 2,000 words**): bottom-up sizing with math shown, top-down as supplement with confidence flags, platform risk, **invalidation findings** (failed companies, skepticism, adoption barriers).
+**Output — write two pages:**
+
+1. **`market-sizing.md`:**
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - market-sizing
+  - demand-signal
+---
+
+# Market Sizing
+
+## Bottom-Up (Primary)
+
+Number of potential customers, with math shown and assumptions explicit.
+Sources linked to [[sources]].
+
+## Top-Down (Supplement)
+
+Analyst estimates with confidence flags and publisher context.
+
+## Demand Signals
+
+Job postings, funding velocity, shutdowns.
+Link to [[trends-and-shifts#funding--exits]] for detail.
+```
+
+2. **`verdict.md`:**
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - risk
+  - positioning
+---
+
+# The Case Against
+
+**Verdict:** [One sentence: go / no-go / conditional go / needs validation]
+
+## Failed Companies
+
+Startups that tried this and failed — why? With citations.
+
+## Strongest Skeptic Arguments
+
+From practitioner communities. Numbered, with evidence.
+
+## Platform Risk
+
+Which big players could enter and ship this as a feature?
+
+## What This Research Couldn't Answer
+
+Data gaps, unknowns, unverifiable claims.
+
+## Verdict on Survivability
+
+After considering all the above, does the opportunity still hold?
+What specifically survives scrutiny?
+Links to supporting evidence across [[market-reality]],
+[[competitive-landscape]], [[trends-and-shifts]].
+```
+
+Max 2,000 words across both pages.
 
 ## Phase 3 — Deep Dives (Opt-In)
 
-Deep dives are **not automatic**. After Phase 2 completes, review the intermediate reports and ask the user:
+Deep dives are **not automatic**. After Phase 2 completes, review the wiki pages and ask the user:
 
 > "Phase 2 is done. Here's what I found: [2-3 sentence summary of key findings and gaps]. I'd recommend a deep dive into [specific question]. Want me to go deeper, or should I proceed to synthesis?"
 
@@ -362,159 +619,138 @@ Each deep dive must:
 4. End with a clear "so what" — what this means for the product
 5. Be honest about what it couldn't find or verify
 
-No word minimums. Answer the question thoroughly, then stop. A focused 1,500-word deep dive that answers the question is better than a 5,000-word one that doesn't.
+No word minimums. Answer the question thoroughly, then stop.
 
-Save each to `$RESEARCH_DIR/` with descriptive filenames.
+Save each deep dive as its own wiki page in `$RESEARCH_DIR/` with a descriptive filename and appropriate frontmatter/tags. Link to and from other wiki pages as appropriate.
 
-## Phase 4 — Synthesize
+## Phase 4 — Synthesize the Wiki
 
-Write the final document to `$RESEARCH_DIR/positioning-research.md`.
+Phase 4 is where the wiki becomes a coherent whole. The agents wrote the research pages; now you connect them and write the synthesis pages.
 
-### Citation System
+### Step 1 — Merge Sources
 
-Numbered references throughout, like a research paper.
+Combine all `sources-partial-*.md` files into a single `sources.md`. Deduplicate, renumber sequentially, and update all references across all wiki pages to match the final numbering.
 
-- Inline: `[1]`, `[2]`, `[1][2]`
-- References section at the end with full URL, title, author, date
-- Every factual claim needs a reference
-- Every user quote needs a direct URL
-
-### Source Credibility Annotations
-
-When citing sources, annotate credibility where it matters:
-
-- `[3, competitor claim]` — this is what the company says about itself
-- `[7, user review]` — this is what a user actually experienced
-- `[12, analyst estimate]` — this is a paid report's projection
-
-This helps the reader weight evidence themselves.
-
-### Document Structure
+### Step 2 — Write `positioning-strategy.md`
 
 ```markdown
-# [Product Name] — Positioning Research
-
-**Date:** [today]
-**Input:** [URL / Memo]
-**Verdict:** [One sentence: go / no-go / conditional go / needs validation]
-
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - positioning
+  - pricing
 ---
 
-## 1. The Case Against
+# Positioning Strategy
 
-Lead with why this might not work. This section earns the reader's trust — if you can articulate the strongest reasons to walk away, the positive findings that follow carry more weight.
+## Core Tension
 
-- Failed or struggling companies in this space and why [N]
-- Strongest skeptic arguments found in practitioner communities [N]
-- Market risks: timing, adoption barriers, category confusion
-- Platform risk: which big players could enter and ship this as a feature [N]
-- What this research couldn't answer — data gaps and unknowns
+The fundamental tension this product must navigate.
 
-**Verdict on survivability:** After considering all the above, does the opportunity still hold? What specifically survives scrutiny?
+## Recommended Positioning
 
-## 2. Market Reality
+Grounded in user language from [[market-reality]], not aspirational marketing.
 
-### What Users Actually Say
-- Pain points ranked by frequency and intensity [N]
-- User language vs. product language — do they match?
-- Key quotes with source URLs [N]
-- Switching signals: why users leave current tools, what triggers the switch [N]
+## One-Liner
 
-### What Users Have Tried
-- Tools and workarounds mentioned, ranked by frequency
-- What works for them, what doesn't
-- The gap: what they wish existed but can't find
+## Differentiation
 
-### Employee Sentiment (Competitor Health)
-- Glassdoor/Blind signals on key competitors [N]
-- Talent flow direction — who's hiring, who's losing people
-- What this reveals about competitor stability and product direction
+Which differentiators are real (evidence from [[market-reality]], [[competitive-landscape]])
+vs. claimed. Ranked by market need, defensibility, evidence strength.
 
-## 3. Competitive Landscape
+## Pricing Recommendation
 
-### Competitor Overview
-- Table: name, what users say about them (not their tagline), pricing, G2 rating, funding, URL
-- Positioning map showing clusters and white space
-
-### Pricing Landscape
-- Price range across category
-- Model comparison (per-seat, usage, flat, freemium)
-- Pricing gaps and what they signal about willingness-to-pay
-
-### Most Dangerous Competitors
-- 1-2 competitors that matter most, based on user evidence not marketing claims
-- What they do well (from user reviews), where they're weak (from negative reviews)
-- **Decision point:** Can you win against them, and on what axis?
-
-## 4. Market Sizing
-
-### Bottom-Up (Primary)
-- Number of potential customers in target segment, with sources [N]
-- Realistic price point × realistic adoption rate (0.5-2%) = grounded estimate
-- Math shown, assumptions explicit
-
-### Top-Down (Supplement)
-- Analyst estimates with confidence flags [N]
-- Context: who produced the report and why their estimates may be inflated
-
-### Demand Signals
-- Job postings in the category [N]
-- Funding velocity — direction and what it means [N]
-- Shutdowns and pivots — what failed companies signal about the market [N]
-
-### Market Timing
-- Emerging / growing / crowded / consolidating?
-- Trend data with source [N]
-- **Decision point:** Is the window open, closing, or not yet open?
-
-## 5. Structural Shifts
-
-Forces reshaping this segment — not trends, but paradigm changes.
-
-For each shift:
-- **The shift:** What's changing and why
-- **Evidence:** Concrete signals [N]
-- **Winners and losers**
-- **Timeline:** Now / 1-2 years / 3-5 years
-- **Implication:** Does this create opportunity, threaten the premise, or require repositioning?
-
-## 6. Positioning Strategy
-
-- The core tension (if any)
-- Recommended positioning and why — grounded in user language from Section 2, not aspirational marketing
-- One-liner
-- Differentiation from nearest neighbors — which differentiators are real (evidence-backed) vs. claimed
-- Value props ranked by: market need (from user research), defensibility, evidence strength
-
-## 7. Pricing Recommendation
-
-- Recommended price point(s) with rationale tied to competitive gaps in Section 3
+- Recommended price point(s) with rationale tied to gaps in [[competitive-landscape#pricing-landscape]]
 - Pricing model with justification
 - Tier structure if applicable
 - Evidence basis: which data points support this price
-- **What's NOT validated:** explicitly flag that willingness-to-pay is inferred, not tested. Recommend specific validation steps
+- **What's NOT validated:** willingness-to-pay is inferred, not tested. Specific validation steps.
+```
 
-## 8. What To Do Next
+### Step 3 — Write `next-steps.md`
 
-- Prioritized action list
-- What to validate before committing (specific experiments: landing page tests, interview targets, pre-sale approaches)
-- What to kill or deprioritize based on findings
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - positioning
+---
+
+# Next Steps
+
+## Priority Actions
+
+Ranked list. Each action links to the evidence that motivates it.
+
+## What to Validate
+
+Specific experiments: landing page tests, interview targets, pre-sale approaches.
+
+## What to Kill or Deprioritize
+
+Based on [[verdict]] findings.
+```
+
+### Step 4 — Write `index.md` (Map of Content)
+
+This is the entry point. Write it last so it reflects everything that was actually produced.
+
+```markdown
+---
+date: YYYY-MM-DD
+type: research
+product: {product-name}
+tags:
+  - positioning
+  - MOC
+---
+
+# {Product Name} — Positioning Research
+
+**Date:** {today}
+**Input:** {URL / Memo summary}
+**Verdict:** {One sentence — links to [[verdict]] for full analysis}
 
 ---
 
-## References
+## Research Map
 
-[1] Author. "Title." *Source.* Date. URL
-[2] ...
+- [[verdict]] — The case against, risks, platform threats, go/no-go
+- [[market-reality]] — User pain points, switching signals, authentic quotes
+- [[competitive-landscape]] — Competitor overview, pricing, positioning gaps
+  - [[competitors/{slug-1}]] | [[competitors/{slug-2}]] | [[competitors/{slug-3}]] | ...
+- [[market-sizing]] — Bottom-up & top-down sizing, demand signals
+- [[trends-and-shifts]] — Structural shifts, timing, funding signals
+- [[positioning-strategy]] — Recommended positioning, pricing, differentiation
+- [[next-steps]] — Priority actions and validation experiments
+- [[sources]] — All references with credibility annotations
+
+{If deep dives were produced, list them here with links}
+
+## Key Findings
+
+3-5 bullet summary of the most important findings, each linking to
+the relevant wiki page for detail.
 ```
+
+### Cross-Linking Pass
+
+After writing all synthesis pages, do a quick pass across every page:
+- Ensure competitor names link to their `[[competitors/{slug}]]` page
+- Ensure claims link to their evidence page
+- Ensure [[sources]] references are consistent
 
 ### Writing Rules
 
 **Audience: Decision makers who need the truth, not reassurance.**
 
 - If the product is poorly positioned, say so. If a differentiator is weak, call it out.
-- Surface hard truths in Section 1, not buried in Section 7.
-- Every section answers "so what?" — not just describes the landscape.
+- Surface hard truths in [[verdict]], not buried in [[next-steps]].
+- Every page answers "so what?" — not just describes the landscape.
 - No filler, no hedging, no "it could be argued that."
 - Challenge assumptions. In URL mode, compare website claims against user evidence.
 - **Rank everything.** Don't present options without a recommendation. Take a position even when evidence is mixed — and state the risk of being wrong.
@@ -534,21 +770,24 @@ For each shift:
 
 ## Self-Review Checklist
 
-Before saving the final document:
+Before finalizing the wiki:
 
-- [ ] Section 1 ("The Case Against") is substantive — it would make an optimist uncomfortable
+- [ ] `index.md` links to every page in the wiki
+- [ ] All `[[wikilinks]]` resolve to actual files
+- [ ] Every page has YAML frontmatter with date, type, product, and tags
+- [ ] `verdict.md` section is substantive — it would make an optimist uncomfortable
 - [ ] Failed companies or skeptic arguments are cited, not just generic risks
 - [ ] Market sizing uses bottom-up math, not just analyst report numbers
 - [ ] Analyst estimates are flagged with confidence level and publisher context
 - [ ] User quotes have direct URLs — no secondhand quotes without `[unverified]` marking
 - [ ] Competitive landscape is built from user/third-party evidence, not competitor marketing copy
 - [ ] Competitor taglines and hero copy are absent (or explicitly marked as competitor claims)
+- [ ] Each major competitor has its own page in `competitors/`
 - [ ] G2 reviews are included — especially 2-3 star reviews
 - [ ] Switching signals are captured with specific triggers
 - [ ] Pricing recommendation exists with concrete price, evidence basis, and unvalidated flags
-- [ ] Every major section ends with a decision point or implication
-- [ ] Source credibility is annotated where it matters
-- [ ] The document takes a clear position on positioning
+- [ ] Source credibility is annotated in `sources.md`
+- [ ] The wiki takes a clear position on positioning
 - [ ] Risks are concrete, specific, and honest — not generic disclaimers
 - [ ] Next steps include specific validation experiments, not just "do more research"
 - [ ] All browser sessions are closed and artifacts cleaned up
